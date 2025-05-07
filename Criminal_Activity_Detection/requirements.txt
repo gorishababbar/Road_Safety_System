@@ -1,2 +1,2 @@
-pip install av tqdm glob2
-pip install opencv-python numpy tensorflow keras
+av tqdm glob2
+opencv-python numpy tensorflow keras
