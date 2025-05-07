@@ -57,6 +57,7 @@ The project uses the **UCF-Crime dataset** — a large-scale real-world surveill
 
 - Install Anaconda (for Jupyter Notebook)
 - Install Python
+- Run: pip install -r requirements.txt
 
 ### 3️⃣ Extract Frames
 
