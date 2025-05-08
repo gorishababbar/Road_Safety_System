@@ -1,0 +1,23 @@
+# Core dependencies
+flask==2.3.3
+Werkzeug==2.3.7
+numpy==1.24.3
+torch==2.0.1
+torchvision==0.15.2
+ultralytics==8.0.26
+opencv-python==4.8.1.78
+
+# Video processing
+ffmpeg-python==0.2.0
+moviepy==1.0.3
+
+# File handling
+Pillow==10.1.0
+
+# Security
+Flask-WTF==1.2.1
+email-validator==2.1.0.post1
+
+# Development tools
+python-dotenv==1.0.0
+pytest==7.4.3

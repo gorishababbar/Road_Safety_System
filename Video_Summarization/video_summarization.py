@@ -1,12 +1,13 @@
 import cv2
 from ultralytics import YOLO
 from datetime import timedelta
+import os
 
 # Load YOLOv8 model (downloads automatically if not present)
 model = YOLO("yolov8n.pt")  # lightweight YOLOv8 nano model
 
 # Video path (replace with your video)
-video_path = r'sample.mp4'  # Path to your video file"
+video_path = os.path.join(os.path.dirname(__file__), 'sample.mp4')
 
 # Open video capture
 cap = cv2.VideoCapture(video_path)
@@ -34,8 +35,17 @@ while cap.isOpened():
 
         # Run YOLO detection
         results = model(frame)
-        detections = results[0].names
-        detected_objects = [results[0].names[int(cls)] for cls in results[0].boxes.cls]
+        
+        # Get class names from model, not from results
+        # The names dictionary is stored in the model, not in results
+        detected_objects = []
+        
+        if len(results) > 0 and hasattr(results[0], 'boxes'):
+            for box in results[0].boxes:
+                # Get class ID and use model.names to get the class name
+                cls_id = int(box.cls.item())
+                class_name = model.names[cls_id]
+                detected_objects.append(class_name)
 
         # Log detected objects or no activity
         if detected_objects:
@@ -51,8 +61,9 @@ while cap.isOpened():
 cap.release()
 
 # Save events to a text file
-with open(r'C:\Users\ASUS\Desktop\Video Summarizer\surveillance_summary.txt', "w") as f:
+output_path = os.path.join(os.path.dirname(__file__), 'surveillance_summary.txt')
+with open(output_path, "w") as f:
     for event in log:
         f.write(event + "\n")
 
-print("Summary saved to surveillance_summary.txt")
+print(f"Summary saved to {output_path}")
