@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Summarization - Road Safety System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .upload-form {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .file-input-container {
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            margin-top: 10px;
+        }
+        
+        .submit-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .submit-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .result-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            margin-top: 30px;
+        }
+        
+        .summary-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .summary-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background-color: #2ecc71;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+        
+        .download-btn:hover {
+            background-color: #27ae60;
+        }
+        
+        .flash-messages {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .flash-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .processing-indicator {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3498db;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Video Summarization</h1>
+            <p>Extract key events and objects from video footage</p>
+            <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+        </header>
+        
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul class="flash-messages">
+            {% for message in messages %}
+            <li class="flash-message">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+        
+        <div class="upload-form">
+            <h2>Upload a Video</h2>
+            <p>Upload a video file to generate a summary of detected objects and activities.</p>
+            
+            <form action="{{ url_for('video_summarization') }}" method="post" enctype="multipart/form-data" id="upload-form">
+                <div class="file-input-container">
+                    <label for="video">Select video file (MP4, AVI, MOV, or MKV):</label>
+                    <input type="file" name="video" id="video" accept=".mp4,.avi,.mov,.mkv" class="file-input" required>
+                </div>
+                <button type="submit" class="submit-btn" id="submit-btn">Generate Summary</button>
+            </form>
+            
+            <div class="processing-indicator" id="processing-indicator">
+                <div class="spinner"></div>
+                <span>Processing video... This may take a few minutes.</span>
+            </div>
+        </div>
+        
+        {% if has_results %}
+        <div class="result-container">
+            <h2>Video Summary Results</h2>
+            <p>Here's a summary of objects and activities detected in your video:</p>
+            
+            <div class="summary-list">
+                {% for item in summary %}
+                <div class="summary-item">{{ item }}</div>
+                {% endfor %}
+            </div>
+            
+            <a href="{{ url_for('download_file', filename='summary_' + video_filename.rsplit('.', 1)[0] + '.txt') }}" class="download-btn">Download Summary Text File</a>
+        </div>
+        {% endif %}
+        
+        <footer>
+            <p>&copy; 2025 Road Safety System</p>
+        </footer>
+    </div>
+    
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', function() {
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('processing-indicator').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

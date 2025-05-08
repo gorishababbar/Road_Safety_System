@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road Safety System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Road Safety System</h1>
+            <p>A Computer Vision-powered system for road safety monitoring and analysis</p>
+        </header>
+        
+        <div class="modules-grid">
+            <a href="{{ url_for('video_authentication') }}" class="module-card">
+                <div class="module-icon">📹</div>
+                <h2>Video Authenticity Detection</h2>
+                <p>Verify the authenticity of surveillance videos using metadata analysis</p>
+            </a>
+            
+            <a href="{{ url_for('video_summarization') }}" class="module-card">
+                <div class="module-icon">📊</div>
+                <h2>Video Summarization</h2>
+                <p>Generate summaries of video footage with object detection</p>
+            </a>
+            
+            <a href="{{ url_for('criminal_activity') }}" class="module-card">
+                <div class="module-icon">🚨</div>
+                <h2>Criminal Activity Detection</h2>
+                <p>Detect and classify suspicious or criminal activities in videos</p>
+            </a>
+            
+            <a href="{{ url_for('traffic_anomaly') }}" class="module-card">
+                <div class="module-icon">🚦</div>
+                <h2>Traffic Anomaly Detection</h2>
+                <p>Identify traffic violations and unusual patterns</p>
+            </a>
+            
+            <a href="{{ url_for('vehicle_number_plate') }}" class="module-card">
+                <div class="module-icon">🚗</div>
+                <h2>Vehicle Number Plate Identification</h2>
+                <p>Detect and recognize vehicle number plates for tracking</p>
+            </a>
+        </div>
+        
+        <footer>
+            <p>&copy; 2025 Road Safety System</p>
+        </footer>
+    </div>
+</body>
+</html>
