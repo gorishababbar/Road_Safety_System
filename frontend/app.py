@@ -6,6 +6,10 @@ from werkzeug.utils import secure_filename
 # Add the Video_Summarization directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Video_Summarization'))
 
+# Add the Video_Authenticity_Detection directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Video_Authenticity_Detection'))
+from main_refactor import detect_video_forgery
+
 # Import the video summarization function
 from video_summarization_refactor import summarize_video
 
@@ -30,10 +34,54 @@ def home():
     """Homepage with buttons for all modules"""
     return render_template('index.html')
 
-@app.route('/video-authentication')
+@app.route('/video-authentication', methods=['GET', 'POST'])
 def video_authentication():
     """Video Authenticity Detection module"""
-    return render_template('video_auth.html')
+    if request.method == 'POST':
+        # Check if a file was uploaded
+        if 'video' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+        
+        file = request.files['video']
+        
+        # If user did not select a file
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        
+        # Get threshold value from form
+        threshold = request.form.get('threshold', 3, type=int)
+        
+        if file and allowed_file(file.filename):
+            # Save the uploaded file
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            # Process the video
+            try:
+                results = detect_video_forgery(file_path, threshold, app.config['UPLOAD_FOLDER'])
+                
+                # Check for errors
+                if "error" in results:
+                    flash(f"Error: {results['error']}")
+                    return redirect(request.url)
+                
+                # Return results to the template
+                return render_template('video_auth.html', 
+                                       results=results, 
+                                       has_results=True, 
+                                       video_filename=filename)
+                
+            except Exception as e:
+                flash(f'Error analyzing video: {str(e)}')
+                return redirect(request.url)
+        else:
+            flash('File type not allowed. Please upload MP4, AVI, MOV, or MKV.')
+            return redirect(request.url)
+            
+    return render_template('video_auth.html', has_results=False)
 
 @app.route('/video-summarization', methods=['GET', 'POST'])
 def video_summarization():
