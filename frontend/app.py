@@ -2,7 +2,8 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 import sys
 from werkzeug.utils import secure_filename
-
+from datetime import datetime
+import numpy as np
 # Add the Video_Summarization directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Video_Summarization'))
 
@@ -15,6 +16,10 @@ from video_summarization_refactor import summarize_video
 
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Vehicle_Number_Plate_Identification'))
 from numberPlateRefactor import process_video_for_plates, get_detected_plates
+
+# Add this import at the top of app.py with your other imports
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Traffic_Anomaly_Detection'))
+from Traffic_refactor import detect_traffic_violations
 
 app = Flask(__name__)
 app.secret_key = 'road_safety_system_2025'  # required for flashing messages
@@ -131,10 +136,78 @@ def criminal_activity():
     """Criminal Activity Detection module"""
     return render_template('criminal.html')
 
-@app.route('/traffic-anomaly')
+
+# Add this route to your app.py, near your other routes
+@app.route('/traffic-anomaly', methods=['GET'])
 def traffic_anomaly():
     """Traffic Anomaly Detection module"""
-    return render_template('traffic.html')
+    return render_template('traffic.html', has_results=False)
+
+@app.route('/traffic-anomaly-process', methods=['POST'])
+def traffic_anomaly_process():
+    """Process video for traffic anomaly detection"""
+    if 'video' not in request.files:
+        flash('No file part')
+        return redirect(url_for('traffic_anomaly'))
+    
+    file = request.files['video']
+    
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(url_for('traffic_anomaly'))
+    
+    if file and allowed_file(file.filename):
+        # Save the uploaded file
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        
+        # Parse optional region parameters
+        red_light_region = None
+        roi_region = None
+        
+        try:
+            if request.form.get('red_light_region'):
+                import json
+                red_light_region = np.array(json.loads(request.form.get('red_light_region').replace("'", '"')))
+            
+            if request.form.get('roi_region'):
+                import json
+                roi_region = np.array(json.loads(request.form.get('roi_region').replace("'", '"')))
+        except Exception as e:
+            flash(f'Error parsing region coordinates: {str(e)}')
+            return redirect(url_for('traffic_anomaly'))
+        
+        # Process the video
+        try:
+            results = detect_traffic_violations(
+                file_path, 
+                app.config['UPLOAD_FOLDER'],
+                red_light_region=red_light_region,
+                roi_region=roi_region
+            )
+            
+            # Check for errors
+            if results['error']:
+                flash(f"Error: {results['error']}")
+                return redirect(url_for('traffic_anomaly'))
+            
+            # Add timestamp for display
+            results['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Return results
+            return render_template('traffic.html', 
+                                   results=results,
+                                   has_results=True, 
+                                   video_filename=filename)
+            
+        except Exception as e:
+            import traceback
+            flash(f'Error processing video: {str(e)}\n{traceback.format_exc()}')
+            return redirect(url_for('traffic_anomaly'))
+    else:
+        flash('File type not allowed. Please upload MP4, AVI, MOV, or MKV.')
+        return redirect(url_for('traffic_anomaly'))
 
 
 @app.route('/vehicle-number-plate', methods=['GET', 'POST'])
