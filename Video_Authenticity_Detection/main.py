@@ -10,9 +10,8 @@ from tabulate import tabulate
 # Get threshold value from user
 th = int(input("Enter threshold: "))
 
-# Manually set the path to your video file
-video_path = r"C:\Users\ASUS\Desktop\Major Project\Tamper-detection-in-digital-videos\dataset\video.mp4"
-
+# Dynamic path for video file
+video_path = os.path.join(os.path.dirname(__file__), "sample.mp4")
 # Check if file exists
 if not os.path.isfile(video_path):
     print("Video file not found at the specified path.")
