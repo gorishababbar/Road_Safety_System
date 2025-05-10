@@ -1,34 +1,32 @@
 import cv2
 import os
-from datetime import datetime
 from pathlib import Path
-import uuid
+import time
+from datetime import datetime
+import argparse
 
-def extract_frames(video_path, output_dir=None, frame_interval=1, resize_dim=None):
+def extract_frames(video_path, output_dir=None, frame_interval=1):
     """
-    Extract frames from a video file and save them to a unique directory.
+    Extract frames from a video file at specified intervals
     
     Parameters:
     -----------
     video_path : str
         Path to the input video file
     output_dir : str, optional
-        Base directory to save the extracted frames. If None, creates a directory in the same location as the script
+        Directory to save the extracted frames. If None, creates a directory based on video name
     frame_interval : int, optional
-        Extract frames at this interval (1 means every frame, 2 means every other frame, etc.)
-    resize_dim : tuple, optional
-        Resize frames to this dimension (width, height) before saving
+        Extract frames at this interval (1 means every frame, 30 means every 30th frame)
         
     Returns:
     --------
     dict
         Results including frame count, output directory, and processing statistics
     """
-    # Results dictionary to return
     results = {
         'success': False,
-        'frame_count': 0,
         'output_dir': None,
+        'frame_count': 0,
         'processing_time': 0,
         'error': None
     }
@@ -38,104 +36,88 @@ def extract_frames(video_path, output_dir=None, frame_interval=1, resize_dim=Non
         if not os.path.exists(video_path):
             results['error'] = f"Video file not found: {video_path}"
             return results
-            
-        # Create unique output directory if not specified
-        if output_dir is None:
-            script_dir = Path(__file__).parent
-            base_output_dir = script_dir / "extracted_frames"
-        else:
-            base_output_dir = Path(output_dir)
-            
-        # Create a unique subdirectory with timestamp and UUID
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        video_name = Path(video_path).stem
-        unique_id = str(uuid.uuid4())[:8]  # First 8 chars of UUID for brevity
-        frames_dir = base_output_dir / f"{video_name}_{timestamp}_{unique_id}"
         
         # Create output directory
-        frames_dir.mkdir(parents=True, exist_ok=True)
+        if output_dir is None:
+            video_name = Path(video_path).stem
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = Path(f"extracted_frames_{video_name}_{timestamp}")
+        else:
+            output_dir = Path(output_dir)
+        
+        # Create output directory if it doesn't exist
+        output_dir.mkdir(parents=True, exist_ok=True)
         
         # Open the video file
-        vidcap = cv2.VideoCapture(video_path)
-        if not vidcap.isOpened():
+        video = cv2.VideoCapture(video_path)
+        
+        if not video.isOpened():
             results['error'] = f"Failed to open video file: {video_path}"
             return results
-            
-        # Get video properties
-        fps = vidcap.get(cv2.CAP_PROP_FPS)
-        total_frames = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
         
-        # Start extraction
-        import time
+        # Video properties
+        fps = video.get(cv2.CAP_PROP_FPS)
+        frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = frame_count / fps if fps > 0 else 0
+        
+        print(f"Video properties: {frame_count} frames, {fps:.2f} fps, {duration:.2f}s duration")
+        print(f"Extracting frames (interval: {frame_interval})")
+        
+        # Start timing
         start_time = time.time()
         
-        frame_count = 0
+        # Extract frames
+        count = 0
         saved_count = 0
         
-        # Read and save frames
-        success, image = vidcap.read()
-        while success:
-            if frame_count % frame_interval == 0:
-                # Resize if needed
-                if resize_dim is not None:
-                    image = cv2.resize(image, resize_dim)
+        while True:
+            ret, frame = video.read()
+            if not ret:
+                break
                 
+            if count % frame_interval == 0:
                 # Save the frame
-                frame_path = frames_dir / f"frame_{saved_count:05d}.jpg"
-                cv2.imwrite(str(frame_path), image)
+                frame_file = output_dir / f"frame_{saved_count:05d}.jpg"
+                cv2.imwrite(str(frame_file), frame)
                 saved_count += 1
                 
-            frame_count += 1
-            success, image = vidcap.read()
+                # Show progress
+                if saved_count % 10 == 0:
+                    print(f"Extracted {saved_count} frames...", end="\r")
             
+            count += 1
+        
+        # Release the video capture object
+        video.release()
+        
         # Calculate processing time
         processing_time = time.time() - start_time
         
-        # Clean up
-        vidcap.release()
-        
         # Update results
         results['success'] = True
+        results['output_dir'] = str(output_dir)
         results['frame_count'] = saved_count
-        results['output_dir'] = str(frames_dir)
         results['processing_time'] = processing_time
-        results['total_video_frames'] = total_frames
-        results['fps'] = fps
+        results['total_frames'] = count
+        
+        print(f"\nExtracted {saved_count} frames from {count} total frames in {processing_time:.2f}s")
+        print(f"Frames saved to: {output_dir}")
         
     except Exception as e:
         results['error'] = str(e)
+        import traceback
+        print(f"Error extracting frames: {e}")
+        print(traceback.format_exc())
     
     return results
 
-# This allows the module to be run directly for testing
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Extract frames from a video file')
-    parser.add_argument('video_path', type=str, help='Path to the input video file')
-    parser.add_argument('--output_dir', type=str, help='Base directory to save the extracted frames')
-    parser.add_argument('--interval', type=int, default=1, help='Extract frames at this interval')
-    parser.add_argument('--resize', type=str, help='Resize frames to this dimension (width,height)')
+    parser = argparse.ArgumentParser(description="Extract frames from a video file")
+    parser.add_argument("video_path", help="Path to the input video file")
+    parser.add_argument("--output", help="Directory to save extracted frames")
+    parser.add_argument("--interval", type=int, default=30, help="Extract every Nth frame (default: 30)")
     
     args = parser.parse_args()
     
-    # Parse resize argument if provided
-    resize_dim = None
-    if args.resize:
-        try:
-            width, height = map(int, args.resize.split(','))
-            resize_dim = (width, height)
-        except:
-            print("Error parsing resize dimensions. Format should be 'width,height'")
-            exit(1)
-    
     print(f"Extracting frames from {args.video_path}")
-    results = extract_frames(args.video_path, args.output_dir, args.interval, resize_dim)
-    
-    if results['error']:
-        print(f"Error: {results['error']}")
-    else:
-        print(f"Successfully extracted {results['frame_count']} frames")
-        print(f"Frames saved to: {results['output_dir']}")
-        print(f"Processing time: {results['processing_time']:.2f} seconds")
-        print(f"Video info: {results['total_video_frames']} frames, {results['fps']:.2f} fps")
+    extract_frames(args.video_path, args.output, args.interval)
