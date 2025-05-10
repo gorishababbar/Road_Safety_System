@@ -4,22 +4,30 @@ import sys
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import numpy as np
+
+# Add this import at the top of app.py with your other imports
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Criminal_Activity_Detection'))
+from frame_ext import extract_frames # type: ignore
+from Model_refactor_ConvLSTM import detect_criminal_activity # type: ignore
+
 # Add the Video_Summarization directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Video_Summarization'))
 
 # Add the Video_Authenticity_Detection directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Video_Authenticity_Detection'))
-from main_refactor import detect_video_forgery
+from main_refactor import detect_video_forgery # type: ignore
+
+
 
 # Import the video summarization function
-from video_summarization_refactor import summarize_video
+from video_summarization_refactor import summarize_video # type: ignore
 
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Vehicle_Number_Plate_Identification'))
-from numberPlateRefactor import process_video_for_plates, get_detected_plates
+from numberPlateRefactor import process_video_for_plates, get_detected_plates # type: ignore
 
 # Add this import at the top of app.py with your other imports
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Traffic_Anomaly_Detection'))
-from Traffic_refactor import detect_traffic_violations
+from Traffic_refactor import detect_traffic_violations # type: ignore
 
 app = Flask(__name__)
 app.secret_key = 'road_safety_system_2025'  # required for flashing messages
@@ -131,10 +139,109 @@ def video_summarization():
             
     return render_template('video_sum.html', has_results=False)
 
-@app.route('/criminal-activity')
+
+
+# Update the criminal-activity route in app.py
+@app.route('/criminal-activity', methods=['GET', 'POST'])
 def criminal_activity():
     """Criminal Activity Detection module"""
-    return render_template('criminal.html')
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+        
+        if action == 'extract_frames':
+            # Frame extraction mode
+            if 'video' not in request.files:
+                flash('No file part')
+                return redirect(request.url)
+            
+            file = request.files['video']
+            
+            if file.filename == '':
+                flash('No selected file')
+                return redirect(request.url)
+            
+            if file and allowed_file(file.filename):
+                # Save the uploaded file
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+                
+                # Get frame interval
+                try:
+                    frame_interval = int(request.form.get('frame_interval', 30))
+                except ValueError:
+                    frame_interval = 30  # Default value
+                
+                # Extract frames
+                try:
+                    extraction_results = extract_frames(
+                        file_path, 
+                        output_dir=None,  # Use default naming with timestamp
+                        frame_interval=frame_interval
+                    )
+                    
+                    if extraction_results['error']:
+                        flash(f"Error extracting frames: {extraction_results['error']}")
+                        return redirect(request.url)
+                    
+                    return render_template('criminal.html', 
+                                          extraction_results=extraction_results,
+                                          has_extraction=True,
+                                          has_detection=False)
+                    
+                except Exception as e:
+                    flash(f'Error extracting frames: {str(e)}')
+                    return redirect(request.url)
+            else:
+                flash('File type not allowed. Please upload MP4, AVI, MOV, or MKV.')
+                return redirect(request.url)
+                
+        elif action == 'detect_activity':
+            # Criminal activity detection mode
+            frames_dir = request.form.get('frames_dir', '')
+            
+            if not frames_dir:
+                flash('Please provide a frames directory')
+                return redirect(request.url)
+            
+            # Get model path
+            model_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), 
+                'Criminal_Activity_Detection', 
+                'crime_model_epoch_5.pth'
+            )
+            
+            if not os.path.exists(model_path):
+                flash(f'Model file not found at {model_path}')
+                return redirect(request.url)
+            
+            # Detect criminal activity
+            try:
+                detection_results = detect_criminal_activity(frames_dir, model_path)
+                
+                if detection_results['error']:
+                    flash(f"Error detecting criminal activity: {detection_results['error']}")
+                    return redirect(request.url)
+                
+                # Get results visualization path if it exists
+                vis_path = None
+                results_dir = os.path.join(frames_dir, 'results')
+                if os.path.exists(results_dir):
+                    vis_file = os.path.join(results_dir, 'classification_results.png')
+                    if os.path.exists(vis_file):
+                        vis_path = os.path.basename(vis_file)
+                
+                return render_template('criminal.html',
+                                      detection_results=detection_results,
+                                      has_extraction=False,
+                                      has_detection=True,
+                                      visualization_path=vis_path)
+                
+            except Exception as e:
+                flash(f'Error detecting criminal activity: {str(e)}')
+                return redirect(request.url)
+    
+    return render_template('criminal.html', has_extraction=False, has_detection=False)
 
 
 # Add this route to your app.py, near your other routes
