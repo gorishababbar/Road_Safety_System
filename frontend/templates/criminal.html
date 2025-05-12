@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criminal Activity Detection - Road Safety System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .upload-form {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .file-input-container {
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            margin-top: 10px;
+        }
+        
+        .result-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            margin-top: 30px;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .form-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .activity-detected {
+            padding: 15px;
+            background-color: #d4edda;
+            color: #155724;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .no-activity {
+            padding: 15px;
+            background-color: #e2e3e5;
+            color: #383d41;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            border-left: 4px solid #6c757d;
+        }
+        
+        .result-title {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .result-item {
+            margin-bottom: 15px;
+        }
+        
+        .result-label {
+            font-weight: 500;
+            margin-right: 10px;
+        }
+
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .activity-table th, 
+        .activity-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .activity-table th {
+            background-color: #f5f5f5;
+            font-weight: 500;
+        }
+        
+        .activity-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .activity-table tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        .activity-table .predicted {
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .activity-table .normal {
+            color: #27ae60;
+        }
+        
+        .activity-table .criminal {
+            color: #e74c3c;
+        }
+        
+        .visualization-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .visualization-container img {
+            max-width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Criminal Activity Detection</h1>
+            <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+        </header>
+        
+        <div class="upload-form">
+            <div class="form-section">
+                <div class="form-title">Step 1: Extract Frames from Video</div>
+                <p>First, upload a video file to extract frames for analysis.</p>
+                
+                <form method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="extract_frames">
+                    
+                    <div class="file-input-container">
+                        <label for="video">Select Video File:</label>
+                        <input type="file" id="video" name="video" class="file-input" accept=".mp4,.avi,.mov,.mkv">
+                        <p class="help-text">Supported formats: MP4, AVI, MOV, MKV</p>
+                    </div>
+                    
+                    <div class="file-input-container">
+                        <label for="frame_interval">Frame Interval (extract every Nth frame):</label>
+                        <input type="number" id="frame_interval" name="frame_interval" value="30" min="1" max="100">
+                        <p class="help-text">Higher values = fewer frames extracted = faster processing</p>
+                    </div>
+                    
+                    <button type="submit" class="btn primary-btn">Extract Frames</button>
+                </form>
+            </div>
+            
+            <div class="form-section" style="border-bottom: none;">
+                <div class="form-title">Step 2: Detect Criminal Activity in Extracted Frames</div>
+                <p>After extracting frames, analyze them to detect criminal activities.</p>
+                
+                <form method="post">
+                    <input type="hidden" name="action" value="detect_activity">
+                    
+                    <div class="file-input-container">
+                        <label for="frames_dir">Frames Directory Path:</label>
+                        <input type="text" id="frames_dir" name="frames_dir" 
+                            {% if has_extraction and extraction_results %}
+                                value="{{ extraction_results.output_dir }}"
+                            {% endif %}
+                            placeholder="Path to directory containing extracted frames">
+                    </div>
+                    
+                    <button type="submit" class="btn primary-btn">Detect Criminal Activity</button>
+                </form>
+            </div>
+        </div>
+        
+        {% if has_extraction and extraction_results %}
+            <div class="result-container">
+                <div class="result-title">Frame Extraction Results</div>
+                
+                <div class="result-item">
+                    <span class="result-label">Status:</span>
+                    <span>{{ "Successful" if extraction_results.success else "Failed" }}</span>
+                </div>
+                
+                <div class="result-item">
+                    <span class="result-label">Frames Extracted:</span>
+                    <span>{{ extraction_results.frame_count }}</span>
+                </div>
+                
+                <div class="result-item">
+                    <span class="result-label">Processing Time:</span>
+                    <span>{{ "%.2f"|format(extraction_results.processing_time) }} seconds</span>
+                </div>
+                
+                <div class="result-item">
+                    <span class="result-label">Output Directory:</span>
+                    <span>{{ extraction_results.output_dir }}</span>
+                </div>
+                
+                <p>Now proceed to Step 2 to detect criminal activity in these frames.</p>
+            </div>
+        {% endif %}
+        
+        {% if has_detection and detection_results %}
+            <div class="result-container">
+                <div class="result-title">Criminal Activity Detection Results</div>
+                
+                {% if detection_results.success %}
+                    <div class="activity-detected">
+                        Detected Activity: {{ detection_results.predicted_class }} 
+                        ({{ "%.1f"|format(detection_results.confidence * 100) }}% confidence)
+                    </div>
+                    
+                    <div class="result-item">
+                        <span class="result-label">Frames Analyzed:</span>
+                        <span>{{ detection_results.frame_count }}</span>
+                    </div>
+                    
+                    <div class="result-item">
+                        <span class="result-label">Processing Time:</span>
+                        <span>{{ "%.2f"|format(detection_results.processing_time) }} seconds</span>
+                    </div>
+                    
+                    <!-- Table instead of bar chart -->
+                    <h3>Activity Distribution:</h3>
+                    <table class="activity-table">
+                        <thead>
+                            <tr>
+                                <th>Activity Type</th>
+                                <th>Frame Count</th>
+                                <th>Percentage</th>
+                                <th>Avg. Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for class_name, stats in detection_results.class_distribution.items() %}
+                                <tr class="{% if class_name == detection_results.predicted_class %}predicted{% elif class_name == 'Normal' %}normal{% else %}criminal{% endif %}">
+                                    <td>{{ class_name }}</td>
+                                    <td>{{ stats.count }}</td>
+                                    <td>{{ "%.1f"|format(stats.percentage) }}%</td>
+                                    <td>{{ "%.2f"|format(stats.avg_confidence) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    {% if visualization_path %}
+                        <div class="visualization-container">
+                            <h3>Visualization:</h3>
+                            <img src="{{ url_for('download_file', filename=visualization_path) }}" alt="Activity Distribution">
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="no-activity">
+                        No criminal activity could be detected in the provided frames.
+                    </div>
+                    
+                    {% if detection_results.error %}
+                        <div class="result-item">
+                            <span class="result-label">Error:</span>
+                            <span>{{ detection_results.error }}</span>
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <footer>
+            <p>&copy; 2025 Road Safety System</p>
+        </footer>
+    </div>
+</body>
+</html>

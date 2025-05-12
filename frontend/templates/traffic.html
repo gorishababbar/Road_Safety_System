@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Anomaly Detection - Road Safety System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .upload-form {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .file-input-container {
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            margin-top: 10px;
+        }
+        
+        .result-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .video-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .video-box {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .video-box video {
+            width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .video-title {
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        .violations-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .violations-table th, .violations-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .violations-table th {
+            background-color: #f5f5f5;
+        }
+        
+        .violations-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border-radius: 5px;
+            border: 1px solid #eee;
+        }
+        
+        .detection-summary {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .detection-summary h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .processing-indicator {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3498db;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .summary-image {
+            max-width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+        }
+        
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 15px 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-list li:before {
+            content: "✓";
+            color: #2ecc71;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .region-input {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .region-box {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #eee;
+        }
+        
+        .region-box h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .coordinates-input {
+            width: 100%;
+            font-family: monospace;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .info-text {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Traffic Anomaly Detection</h1>
+            <a href="{{ url_for('home') }}" class="back-button">Back to Home</a>
+        </header>
+        
+        <div class="upload-form">
+            <h2>Upload Traffic Video for Violation Detection</h2>
+            <p>This module detects vehicles that cross intersections during red lights using computer vision and AI.</p>
+            
+            <ul class="feature-list">
+                <li>Automatic traffic light state detection</li>
+                <li>Vehicle tracking in intersection zones</li>
+                <li>Red light violation detection and counting</li>
+                <li>Generates detailed violation reports and visual summaries</li>
+            </ul>
+            
+            <form id="upload-form" action="{{ url_for('traffic_anomaly_process') }}" method="post" enctype="multipart/form-data">
+                <div class="file-input-container">
+                    <label for="video">Select a traffic video file:</label>
+                    <input type="file" id="video" name="video" class="file-input" accept=".mp4,.avi,.mov,.mkv">
+                    <p class="help-text">Supported formats: MP4, AVI, MOV, MKV (Max 500MB)</p>
+                </div>
+                
+                <div class="region-input">
+                    <div class="region-box">
+                        <h4>Red Light Region (Optional)</h4>
+                        <input type="text" id="red_light_region" name="red_light_region" class="coordinates-input" 
+                               placeholder="[[998,125], [998,155], [972,152], [970,127]]">
+                        <p class="info-text">Define the region where the red light appears in the video</p>
+                    </div>
+                    
+                    <div class="region-box">
+                        <h4>Intersection Region (Optional)</h4>
+                        <input type="text" id="roi_region" name="roi_region" class="coordinates-input" 
+                               placeholder="[[910,372], [388,365], [338,428], [917,441]]">
+                        <p class="info-text">Define the region where vehicles shouldn't cross during red lights</p>
+                    </div>
+                </div>
+                
+                <button type="submit" id="submit-btn" class="btn primary-btn">Process Video</button>
+            </form>
+            
+            <div class="processing-indicator" id="processing-indicator">
+                <div class="spinner"></div>
+                <span>Processing video... This may take several minutes. Red light violations are being detected.</span>
+            </div>
+        </div>
+        
+        {% if has_results %}
+        <div class="result-container">
+            <h2>Traffic Violation Detection Results</h2>
+            
+            <div class="detection-summary">
+                <h3>Detection Summary</h3>
+                <p><strong>Total Violations Detected:</strong> {{ results.violation_count }}</p>
+                <p><strong>Processing Time:</strong> {{ results.processing_time|round(1) }} seconds</p>
+                <p><strong>Analysis Completed:</strong> {{ results.timestamp }}</p>
+            </div>
+            
+            <div class="video-container">
+                <div class="video-box">
+                    <h3 class="video-title">Original Video</h3>
+                    <video controls>
+                        <source src="{{ url_for('download_file', filename=video_filename) }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="button-container">
+                        <a href="{{ url_for('download_file', filename=video_filename) }}" class="btn secondary-btn">Download Original</a>
+                    </div>
+                </div>
+                
+                <div class="video-box">
+                    <h3 class="video-title">Processed Video (with Detections)</h3>
+                    <video controls>
+                        <source src="{{ url_for('download_file', filename=results.processed_video) }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="button-container">
+                        <a href="{{ url_for('download_file', filename=results.processed_video) }}" class="btn secondary-btn">Download Processed</a>
+                    </div>
+                </div>
+            </div>
+            
+            <h3>Violation Summary</h3>
+            <p>Visual summary of detected traffic violations:</p>
+            
+            <img src="{{ url_for('download_file', filename=results.summary_image) }}" alt="Violation Summary" class="summary-image">
+            <div class="button-container">
+                <a href="{{ url_for('download_file', filename=results.summary_image) }}" class="btn secondary-btn">Download Summary Image</a>
+            </div>
+            
+            {% if results.violations %}
+            <h3>Detailed Violation Log</h3>
+            <div class="table-container">
+                <table class="violations-table">
+                    <thead>
+                        <tr>
+                            <th>Frame #</th>
+                            <th>Time</th>
+                            <th>Vehicle Type</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for violation in results.violations %}
+                        <tr>
+                            <td>{{ violation.frame }}</td>
+                            <td>{{ violation.time }}</td>
+                            <td>{{ violation.type }}</td>
+                            <td>{{ (violation.confidence * 100)|round(1) }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert-message">
+                <p>No traffic violations were detected in this video.</p>
+            </div>
+            {% endif %}
+            
+            <div class="buttons-container">
+                <a href="{{ url_for('traffic_anomaly') }}" class="btn primary-btn">Process Another Video</a>
+            </div>
+        </div>
+        {% endif %}
+        
+        <footer>
+            <p>&copy; 2025 Road Safety System</p>
+        </footer>
+    </div>
+    
+    <script>
+        // File size validation
+        document.getElementById('video').addEventListener('change', function() {
+            const fileInput = this;
+            const maxSizeMB = 500; // Match your server-side limit
+            
+            if (fileInput.files.length > 0) {
+                const fileSize = fileInput.files[0].size / (1024 * 1024); // Convert to MB
+                if (fileSize > maxSizeMB) {
+                    alert(`File size exceeds ${maxSizeMB} MB. Please choose a smaller file.`);
+                    fileInput.value = ''; // Clear the file input
+                }
+            }
+        });
+        
+        // Show processing indicator
+        document.getElementById('upload-form').addEventListener('submit', function() {
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('processing-indicator').style.display = 'block';
+        });
+        
+        // Helper functions for coordinates validation
+        function isValidCoordinates(coordsText) {
+            try {
+                if (!coordsText.trim()) return true; // Allow empty input
+                const coords = JSON.parse(coordsText.replace(/'/g, '"'));
+                return Array.isArray(coords) && coords.length >= 3;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // Validate region inputs
+        document.getElementById('upload-form').addEventListener('submit', function(e) {
+            const redLightRegion = document.getElementById('red_light_region').value;
+            const roiRegion = document.getElementById('roi_region').value;
+            
+            if (redLightRegion && !isValidCoordinates(redLightRegion)) {
+                e.preventDefault();
+                alert('Invalid red light region format. Please enter a valid array of coordinates or leave blank.');
+                return false;
+            }
+            
+            if (roiRegion && !isValidCoordinates(roiRegion)) {
+                e.preventDefault();
+                alert('Invalid intersection region format. Please enter a valid array of coordinates or leave blank.');
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>

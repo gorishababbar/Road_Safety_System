@@ -8,3 +8,4 @@ ultralytics==8.3.129
 opencv-python
 paddleocr
 paddlepaddle
+tabulate
